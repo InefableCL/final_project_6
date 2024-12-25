@@ -45,7 +45,7 @@ var tasks = map[string]Task{
 // ...
 
 func getTasks(w http.ResponseWriter, r *http.Request) {
-	resp, err := json.MarshalIndent(tasks, "", "    ")
+	resp, err := json.Marshal(tasks)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -56,7 +56,7 @@ func getTasks(w http.ResponseWriter, r *http.Request) {
 	w.Write(resp)
 }
 
-func postTasks(w http.ResponseWriter, r *http.Request) {
+func addTasks(w http.ResponseWriter, r *http.Request) {
 	var task Task
 	var buf bytes.Buffer
 
@@ -71,6 +71,11 @@ func postTasks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if _, exists := tasks[task.ID]; exists {
+		w.Write([]byte("Task already exists"))
+		return
+	}
+
 	tasks[task.ID] = task
 
 	w.Header().Set("Content-Type", "application/json")
@@ -82,7 +87,7 @@ func getTask(w http.ResponseWriter, r *http.Request) {
 
 	task, ok := tasks[id]
 	if !ok {
-		http.Error(w, "Артист не найден", http.StatusNoContent)
+		http.Error(w, "Task not found", http.StatusNoContent)
 		return
 	}
 
@@ -97,18 +102,18 @@ func getTask(w http.ResponseWriter, r *http.Request) {
 	w.Write(resp)
 }
 
-func delTask(w http.ResponseWriter, r *http.Request) {
+func deleteTask(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 
 	task, ok := tasks[id]
 	if !ok {
-		http.Error(w, "Артист не найден", http.StatusNoContent)
+		http.Error(w, "Task not found", http.StatusNoContent)
 		return
 	}
 
 	delete(tasks, task.ID)
 
-	_, err := json.MarshalIndent(task, "", "    ")
+	_, err := json.Marshal(task)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -123,11 +128,11 @@ func main() {
 
 	r.Get("/tasks", getTasks)
 
-	r.Post("/tasks", postTasks)
+	r.Post("/tasks", addTasks)
 
 	r.Get("/tasks/{id}", getTask)
 
-	r.Delete("/tasks/{id}", delTask)
+	r.Delete("/tasks/{id}", deleteTask)
 
 	if err := http.ListenAndServe(":8080", r); err != nil {
 		fmt.Printf("Ошибка при запуске сервера: %s", err.Error())
